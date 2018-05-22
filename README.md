@@ -40,7 +40,7 @@ module "lets_encrypt_cert" {
 }
 ```
 
-This will create a Lambda function that generates and returns SSL certificates. An [example](./example/) has been included but setting this up is left as an exercise for the reader.
+This will create a Lambda function that generates and returns SSL certificates. An [example](./example/) of how to use the certificates has been included but setting this up is left as an exercise for the reader.
 
 ## Inputs
 
@@ -56,5 +56,5 @@ This will create a Lambda function that generates and returns SSL certificates. 
 
 | Name | Description |
 |------|-------------|
-| lambda_function_arn | The ARN of the Lambda function |
-| lambda_function_name | The name of the Lambda function |
+| lambda_function_arn | The ARN of the Lambda function. |
+| lambda_function_name | The name of the Lambda function. |
