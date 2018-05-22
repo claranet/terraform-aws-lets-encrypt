@@ -1,0 +1,9 @@
+[Unit]
+Description=Keep the SSL certificate up to date
+
+[Timer]
+OnBootSec=6h
+OnUnitActiveSec=6h
+
+[Install]
+WantedBy=timers.target

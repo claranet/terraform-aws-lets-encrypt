@@ -1,0 +1,15 @@
+[Unit]
+Description=Install the latest SSL certificate
+After=set-environment.service
+Wants=set-environment.service
+Before=nginx.service
+
+[Service]
+EnvironmentFile=/etc/manage-ssl-cert
+Type=oneshot
+ExecStart=/bin/sh -c 'while ! /usr/sbin/manage-ssl-cert; do sleep 10; done'
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
+RequiredBy=nginx.service

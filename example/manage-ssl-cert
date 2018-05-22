@@ -1,0 +1,158 @@
+#!/usr/bin/env python
+
+import boto3
+import errno
+import json
+import os
+import subprocess
+import shutil
+import tempfile
+
+
+CERTS_DIR = os.environ['LETS_ENCRYPT_CERTIFICATES_DIR']
+DOMAIN = os.environ['LETS_ENCRYPT_DOMAIN']
+FUNCTION_NAME = os.environ['LETS_ENCRYPT_FUNCTION_NAME']
+
+LIVE_CERT_SYMLINK_PATH = os.path.join(CERTS_DIR, 'live')
+
+
+lambda_client = boto3.client('lambda')
+
+
+def atomic_symlink(source, link_name):
+    """
+    Create a symlink atomically
+
+    """
+
+    # Create a temporary directory in the same directory as the
+    # target symlink, so they will be on the same filesystem.
+    link_dir = os.path.dirname(link_name)
+    temp_dir = tempfile.mkdtemp(dir=link_dir)
+    try:
+
+        # Create a temporary symlink.
+        temp_link = os.path.join(temp_dir, os.path.basename(link_name))
+        os.symlink(source, temp_link)
+
+        # Atomically rename the temporary symlink,
+        # replacing any existing symlink.
+        os.rename(temp_link, link_name)
+
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+def atomic_write(path, contents):
+    """
+    Writes the contents to a temporary file and then renames it,
+    removing the chance of partially writing a file to the target path.
+
+    """
+
+    # Create a temporary file in the same directory as the
+    # target path, so they will be on the same filesystem.
+    target_dir = os.path.dirname(path)
+    with tempfile.NamedTemporaryFile(
+        dir=target_dir,
+        delete=False,
+    ) as open_file:
+
+        # Write the contents to the temporary file.
+        open_file.write(contents)
+
+    # Atomically rename written temporary file
+    # to the target path.
+    os.rename(open_file.name, path)
+
+
+def get_cert():
+    """
+    Gets certificate details from the Lambda function.
+
+    """
+
+    response = lambda_client.invoke(
+        FunctionName=FUNCTION_NAME,
+        InvocationType='RequestResponse',
+        Payload='{}',
+    )
+
+    if response.get('FunctionError'):
+        raise SystemExit(response)
+
+    return json.loads(response['Payload'].read().encode('utf-8'))
+
+
+def log(message, *args, **kwargs):
+    """
+    Formats and logs a message to CloudWatch Logs.
+
+    """
+
+    if args or kwargs:
+        message = message.format(*args, **kwargs)
+
+    print(message)
+
+
+def make_dirs(path):
+    """
+    Makes a directory without complaining if it already exists.
+
+    """
+
+    try:
+        os.makedirs(path)
+    except os.error as error:
+        if error.errno != errno.EEXIST:
+            raise
+
+
+if __name__ == '__main__':
+
+    # Fetch the latest certificate, creating one if required.
+    log('Getting ACM certificate...')
+    cert = get_cert()
+    cert_arn = cert['CertificateArn']
+    log('Found ACM certificate {}', cert_arn)
+
+    # Ensure the certificate directory exists.
+    cert_id = cert_arn.split('/')[-1]
+    cert_dir = os.path.join(CERTS_DIR, cert_id)
+    make_dirs(cert_dir)
+
+    # Ensure fullchain.pem exists.
+    cert_chain_path = os.path.join(cert_dir, 'fullchain.pem')
+    if not os.path.exists(cert_chain_path):
+        log('Installing {}', cert_chain_path)
+        full_chain = cert['Certificate'] + cert['CertificateChain']
+        atomic_write(cert_chain_path, full_chain)
+
+    # Ensure privkey.pem exists.
+    cert_private_key_path = os.path.join(cert_dir, 'privkey.pem')
+    if not os.path.exists(cert_private_key_path):
+        log('Installing {}', cert_private_key_path)
+        private_key = cert['PrivateKey']
+        atomic_write(cert_private_key_path, private_key)
+
+    # Ensure the live symlink points to this certificate directory.
+    if not os.path.exists(LIVE_CERT_SYMLINK_PATH):
+        log('Creating live symlink')
+        write_symlink = True
+    elif os.readlink(LIVE_CERT_SYMLINK_PATH) != cert_dir:
+        log('Updating live symlink')
+        write_symlink = True
+    else:
+        write_symlink = False
+    if write_symlink:
+        atomic_symlink(
+            source=cert_dir,
+            link_name=LIVE_CERT_SYMLINK_PATH,
+        )
+
+    # Reload Nginx incase the certificate has changed.
+    err = subprocess.call('service nginx status > /dev/null 2>&1', shell=True)
+    if err == 0:
+        log('Reloading Nginx')
+        subprocess.call('nginx -s reload', shell=True)
