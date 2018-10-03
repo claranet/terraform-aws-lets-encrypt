@@ -126,7 +126,7 @@ if __name__ == '__main__':
     cert_chain_path = os.path.join(cert_dir, 'fullchain.pem')
     if not os.path.exists(cert_chain_path):
         log('Installing {}', cert_chain_path)
-        full_chain = cert['Certificate'] + cert['CertificateChain']
+        full_chain = cert['CertificateChain']
         atomic_write(cert_chain_path, full_chain)
 
     # Ensure privkey.pem exists.
