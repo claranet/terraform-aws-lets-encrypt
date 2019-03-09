@@ -51,6 +51,10 @@ def find_latest_cert():
             response = acm.describe_certificate(CertificateArn=cert_arn)
             cert_info = response['Certificate']
 
+            # Exclude ACM certificates.
+            if not cert_info.get('ImportedAt'):
+                continue
+
             # Exclude older certificates.
             if latest_cert_info:
                 if cert_info['ImportedAt'] <= latest_cert_info['ImportedAt']:
