@@ -221,8 +221,8 @@ def provision_cert():
             'pip', 'install',
             '--no-cache-dir',
             '--target', python_dir,
-            'certbot==0.24.0',
-            'certbot-dns-route53==0.24.0',
+            'certbot==0.40.1',
+            'certbot-dns-route53==0.40.1',
         ]
 
         subprocess.run(cmd, check=True)
