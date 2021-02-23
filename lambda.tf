@@ -1,7 +1,7 @@
 module "lambda" {
   source = "github.com/claranet/terraform-aws-lambda?ref=v1.2.0"
 
-  function_name = "${var.name}"
+  function_name = var.name
   description   = "Let's Encrypt certificate management"
   handler       = "lambda.lambda_handler"
   runtime       = "python3.6"
@@ -18,10 +18,10 @@ module "lambda" {
 
   environment = {
     variables = {
-      DOMAINS       = "${jsonencode(var.domains)}"
-      EMAIL_ADDRESS = "${var.email_address}"
-      FUNCTION_NAME = "${var.name}"
-      STAGING       = "${var.staging ? 1 : 0}"
+      DOMAINS       = jsonencode(var.domains)
+      EMAIL_ADDRESS = var.email_address
+      FUNCTION_NAME = var.name
+      STAGING       = var.staging ? 1 : 0
     }
   }
 }
