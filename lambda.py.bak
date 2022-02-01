@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import boto3
 import collections
 import datetime
@@ -5,7 +7,9 @@ import json
 import os
 import subprocess
 import tempfile
-import glob
+import certbot.main
+import shutil
+
 
 DOMAINS = json.loads(os.environ['DOMAINS'])
 SUBJECT = DOMAINS[0]
@@ -211,64 +215,57 @@ def provision_cert():
 
     """
 
-    with tempfile.TemporaryDirectory() as temp_dir:
+    log('Installing certbot')
 
-        log('Installing certbot')
+    CERTBOT_DIR = '/tmp/certbot'
+    CERTBOT_SERVER = 'https://acme-v02.api.letsencrypt.org/directory'
 
-        python_dir = os.path.join(temp_dir, 'python')
+    python_dir = os.path.join(CERTBOT_DIR, 'python')
 
-        cmd = [
-            'pip', 'install',
-            '--no-cache-dir',
-            '--target', python_dir,
-            'certbot==1.22.0',
-            'certbot-dns-route53==1.22.0',
-        ]
+    cmd = [
+        'pip', 'install',
+        '--no-cache-dir',
+        '--target', python_dir,
+        'certbot==1.22.0',
+        'certbot-dns-route53==1.22.0',
+    ]
 
-        subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True)
 
-        log('Running certbot')
+    log('Running certbot')
 
-        lets_encrypt_dir = temp_dir
-        config_dir = os.path.join(lets_encrypt_dir, 'config')
-        work_dir = os.path.join(lets_encrypt_dir, 'work')
-        logs_dir = os.path.join(lets_encrypt_dir, 'logs')
+    cmd = [
+        'python', '-m', 'certbot.main',
+        'certonly',
+        '--non-interactive',
+        '--agree-tos',
+        '--email', EMAIL_ADDRESS,
+        '--dns-route53',
+        '--server', CERTBOT_SERVER,
+        '--domains', ','.join(DOMAINS),
+        '--config-dir', CERTBOT_DIR,
+        '--work-dir', CERTBOT_DIR,
+        '--logs-dir', CERTBOT_DIR,
+    ]
 
-        cmd = [
-            'python', '-m', 'certbot.main', 'certonly',
-            '--noninteractive',
-            '--agree-tos',
-            '--email', EMAIL_ADDRESS,
-            '--dns-route53',
-            '--domains', ','.join(DOMAINS),
-            '--config-dir', config_dir,
-            '--work-dir', work_dir,
-            '--logs-dir', logs_dir,
-        ]
-        if STAGING:
-            cmd.append('--staging')
+    subprocess.run(cmd, cwd=python_dir, check=True)
 
-        subprocess.run(cmd, cwd=python_dir, check=True)
+    cert_data = {}
 
-        files = glob.glob('/**/*.pem', recursive = True)
-        for file in files:
-            print(file)
+    files = {
+        'Certificate': 'cert.pem',
+        'CertificateChain': 'fullchain.pem',
+        'PrivateKey': 'privkey.pem',
+    }
+    for key, name in files.items():
+        """
+        path = os.path.join(CERTBOT_DIR, 'live', SUBJECT, name)
+        """
+        path = os.path.join(CERTBOT_DIR, 'live')
+        with open(path) as open_file:
+            cert_data[key] = open_file.read()
 
-        cert_data = {}
-
-        files = {
-            'Certificate': 'cert.pem',
-            'CertificateChain': 'fullchain.pem',
-            'PrivateKey': 'privkey.pem',
-        }
-        cert_dir_path = os.path.join(lets_encrypt_dir, 'live')
-        for dirpath, _dirnames, filenames in os.walk(cert_dir_path):
-            for key, name in files.items():
-                local_path = os.path.join(dirpath, name)
-                with open(local_path) as open_file:
-                    cert_data[key] = open_file.read()
-
-        return cert_data
+    return cert_data
 
 
 def lambda_handler(event, context):
