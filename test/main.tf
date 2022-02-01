@@ -16,7 +16,7 @@ resource "random_id" "name" {
 }
 
 module "lets_encrypt_cert" {
-  source = ".."
+  source = "../"
 
   name = "${random_id.name.hex}"
 
