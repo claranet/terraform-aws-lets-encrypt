@@ -4,13 +4,13 @@ module "lambda" {
   function_name = "${var.name}"
   description   = "Let's Encrypt certificate management"
   handler       = "lambda.lambda_handler"
-  runtime       = "python3.7"
+  runtime       = "python3.8"
   memory_size   = 512
   timeout       = 300
 
   reserved_concurrent_executions = 1
 
-  source_path = "${path.module}/lambda.py"
+  source_path = "${path.module}/lambda"
 
   attach_policy = true
   policy        = "${data.aws_iam_policy_document.lambda.json}"

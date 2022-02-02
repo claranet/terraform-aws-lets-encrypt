@@ -1,0 +1,2 @@
+certbot==1.22
+certbot-dns-route53==1.22

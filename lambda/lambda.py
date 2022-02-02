@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import tempfile
+import certbot.main
 
 
 DOMAINS = json.loads(os.environ['DOMAINS'])
@@ -213,19 +214,6 @@ def provision_cert():
 
     with tempfile.TemporaryDirectory() as temp_dir:
 
-        log('Installing certbot')
-
-        python_dir = os.path.join(temp_dir, 'python')
-
-        cmd = [
-            'pip', 'install',
-            '--no-cache-dir',
-            '--target', python_dir,
-            'certbot==0.40.1',
-            'certbot-dns-route53==0.40.1',
-        ]
-
-        subprocess.run(cmd, check=True)
 
         log('Running certbot')
 
@@ -234,21 +222,21 @@ def provision_cert():
         work_dir = os.path.join(lets_encrypt_dir, 'work')
         logs_dir = os.path.join(lets_encrypt_dir, 'logs')
 
-        cmd = [
-            'python', '-m', 'certbot.main', 'certonly',
-            '--noninteractive',
-            '--agree-tos',
-            '--email', EMAIL_ADDRESS,
-            '--dns-route53',
-            '--domains', ','.join(DOMAINS),
-            '--config-dir', config_dir,
-            '--work-dir', work_dir,
-            '--logs-dir', logs_dir,
+        certbot_args = [
+                'certonly',                             # Obtain a cert but don't install it
+                '--noninteractive',                     # Run in non-interactive mode
+                '--agree-tos',                          # Agree to the terms of service,
+                '--email', EMAIL_ADDRESS,               # Email
+                '--dns-route53',                        # Use dns challenge with route53
+                '--domains', ','.join(DOMAINS),         # Domains to provision certs for
+                '--config-dir', config_dir,             # Override directory paths so script doesn't have to be run as root
+                '--work-dir', work_dir,
+                '--logs-dir', logs_dir,
         ]
         if STAGING:
-            cmd.append('--staging')
-
-        subprocess.run(cmd, cwd=python_dir, check=True)
+            certbot_args.append('--staging')
+        
+        certbot.main.main(certbot_args)
 
         cert_data = {}
 
