@@ -4,7 +4,7 @@ module "lambda" {
   function_name = "${var.name}"
   description   = "Let's Encrypt certificate management"
   handler       = "lambda.lambda_handler"
-  runtime       = "python3.7"
+  runtime       = "python3.8"
   memory_size   = 512
   timeout       = 300
 
