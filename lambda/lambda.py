@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import tempfile
+import certbot.main
 
 
 DOMAINS = json.loads(os.environ['DOMAINS'])
