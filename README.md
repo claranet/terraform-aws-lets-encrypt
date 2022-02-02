@@ -58,3 +58,19 @@ This will create a Lambda function that generates and returns SSL certificates. 
 |------|-------------|
 | lambda_function_arn | The ARN of the Lambda function. |
 | lambda_function_name | The name of the Lambda function. |
+
+## Generating new zip archive
+ ### Install dependencies
+ ```
+ pip install --target ./certbot-1.22 --no-cache-dir certbot==1.22 certbot-dns-route53==1.22
+```
+ ### ZIP up dependencies
+```
+ cd certbot-1.22
+ zip -r ../certbot-1.22.zip .
+```
+ ## Add code to root of zip
+```
+ zip -g certbot-1.22.zip lambda.py
+```
+ ### Use new zip file for Lambda and check into git. 

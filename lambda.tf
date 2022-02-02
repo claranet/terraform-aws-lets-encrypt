@@ -10,7 +10,7 @@ module "lambda" {
 
   reserved_concurrent_executions = 1
 
-  source_path = "${path.module}/lambda.py"
+  source_path = "${path.module}/certbot-1.22.zip"
 
   attach_policy = true
   policy        = "${data.aws_iam_policy_document.lambda.json}"
